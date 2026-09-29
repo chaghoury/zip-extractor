@@ -1,68 +1,68 @@
-use std::{env, fs, io, path};
+use std::fs::{self, File};
+use std::io::{self, BufReader};
+use std::path::{Path, PathBuf};
+use std::process::ExitCode;
 
-fn main() {
-    std::process::exit(extract_from_zip());
+fn main() -> ExitCode {
+    let args: Vec<String> = std::env::args().collect();
+
+    if args.len() < 2 || args.len() > 3 {
+        eprintln!("Usage: {} <zip_file> [destination_dir]", args[0]);
+        return ExitCode::FAILURE;
+    }
+
+    let archive_path = Path::new(&args[1]);
+    let target_dir = if args.len() == 3 {
+        PathBuf::from(&args[2])
+    } else {
+        PathBuf::from(".")
+    };
+
+    if let Err(err) = extract(archive_path, &target_dir) {
+        eprintln!("Error: {err}");
+        return ExitCode::FAILURE;
+    }
+
+    ExitCode::SUCCESS
 }
 
-fn extract_from_zip() -> i32 {
-    let args = env::args().collect::<Vec<String>>();
-
-    if args.len() < 2 {
-        println!("Usage: {} <zip_file>", args[0]);
-        return 1;
-    }
-
-    for i in 1..args.len() {
-        println!("#{}: {}", i, args[i]);
-    }
-
-    let filename = path::Path::new(&args[1]);
-    let file = fs::File::open(filename);
-
-    if file.is_err() {
-        println!("Error opening file: {}", args[1]);
-        return 1;
-    }
-
-    let archive = zip::ZipArchive::new(file.unwrap());
-    if archive.is_err() {
-        println!("Error reading zip archive: {}", args[1]);
-        return 1;
-    }
-
-    let mut archive = archive.unwrap();
+fn extract(archive_path: &Path, target_dir: &Path) -> Result<(), Box<dyn std::error::Error>> {
+    let file = File::open(archive_path)
+        .map_err(|e| format!("Failed to open '{}': {e}", archive_path.display()))?;
+    let reader = BufReader::new(file);
+    let mut archive = zip::ZipArchive::new(reader).map_err(|e| {
+        format!(
+            "Failed to read zip archive '{}': {e}",
+            archive_path.display()
+        )
+    })?;
 
     for i in 0..archive.len() {
-        let mut file = archive.by_index(i).unwrap();
+        let mut file = archive.by_index(i)?;
 
-        let outpath = match file.enclosed_name() {
+        let enclosed = match file.enclosed_name() {
             Some(path) => path.to_owned(),
-            None => continue,
+            None => {
+                eprintln!("Warning: Skipping unsafe or invalid path for entry {i}");
+                continue;
+            }
         };
 
-        if (file.name()).ends_with('/') {
-            println!("File {} extracted to \"{}\"", i, outpath.display());
-            fs::create_dir(&outpath).unwrap();
-        } else {
-            println!(
-                "File {} extracted to \"{}\" ({} bytes)",
-                i,
-                outpath.display(),
-                file.size()
-            );
+        let outpath = target_dir.join(enclosed);
 
-            if let Some(p) = outpath.parent() {
-                if !p.exists() {
-                    fs::create_dir_all(&p).unwrap();
-                }
+        if file.is_dir() {
+            println!("Creating directory: \"{}\"", outpath.display());
+            fs::create_dir_all(&outpath)?;
+        } else {
+            if let Some(parent) = outpath.parent() {
+                fs::create_dir_all(parent)?;
             }
 
-            let mut outfile = fs::File::create(&outpath).unwrap();
-            io::copy(&mut file, &mut outfile).unwrap();
+            let mut outfile = File::create(&outpath)?;
+            io::copy(&mut file, &mut outfile)?;
 
             println!(
-                "File {} extracted to \"{}\" ({} bytes)",
-                i,
+                "Extracted: \"{}\" ({} bytes)",
                 outpath.display(),
                 file.size()
             );
@@ -72,10 +72,10 @@ fn extract_from_zip() -> i32 {
         {
             use std::os::unix::fs::PermissionsExt;
             if let Some(mode) = file.unix_mode() {
-                fs::set_permissions(&outpath, fs::Permissions::from_mode(mode)).unwrap();
+                let _ = fs::set_permissions(&outpath, fs::Permissions::from_mode(mode));
             }
         }
     }
 
-    return 0;
+    Ok(())
 }
