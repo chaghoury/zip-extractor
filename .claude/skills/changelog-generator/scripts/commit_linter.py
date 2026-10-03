@@ -16,8 +16,7 @@ import subprocess
 import sys
 from dataclasses import dataclass, asdict
 from pathlib import Path
-from typing import List, Optional
-
+from typing import List
 
 CONVENTIONAL_RE = re.compile(
     r"^(feat|fix|perf|refactor|docs|test|build|ci|chore|security|deprecated|remove)"
@@ -38,18 +37,33 @@ class LintReport:
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Validate conventional commit subjects.")
+    parser = argparse.ArgumentParser(
+        description="Validate conventional commit subjects."
+    )
     parser.add_argument("--input", help="File with commit subjects (one per line).")
     parser.add_argument("--from-ref", help="Git ref start (exclusive).")
     parser.add_argument("--to-ref", help="Git ref end (inclusive).")
-    parser.add_argument("--strict", action="store_true", help="Exit non-zero when violations exist.")
-    parser.add_argument("--format", choices=["text", "json"], default="text", help="Output format.")
+    parser.add_argument(
+        "--strict",
+        action="store_true",
+        help="Exit non-zero when violations exist.",
+    )
+    parser.add_argument(
+        "--format",
+        choices=["text", "json"],
+        default="text",
+        help="Output format.",
+    )
     return parser.parse_args()
 
 
 def lines_from_file(path: str) -> List[str]:
     try:
-        return [line.strip() for line in Path(path).read_text(encoding="utf-8").splitlines() if line.strip()]
+        return [
+            line.strip()
+            for line in Path(path).read_text(encoding="utf-8").splitlines()
+            if line.strip()
+        ]
     except Exception as exc:
         raise CLIError(f"Failed reading --input file: {exc}") from exc
 
@@ -73,7 +87,9 @@ def lines_from_git(args: argparse.Namespace) -> List[str]:
             check=True,
         )
     except subprocess.CalledProcessError as exc:
-        raise CLIError(f"git log failed for range '{range_spec}': {exc.stderr.strip()}") from exc
+        raise CLIError(
+            f"git log failed for range '{range_spec}': {exc.stderr.strip()}"
+        ) from exc
     return [line.strip() for line in proc.stdout.splitlines() if line.strip()]
 
 
@@ -99,7 +115,12 @@ def lint(lines: List[str]) -> LintReport:
             continue
         violations.append(f"line {idx}: {line}")
 
-    return LintReport(total=len(lines), valid=valid, invalid=len(violations), violations=violations)
+    return LintReport(
+        total=len(lines),
+        valid=valid,
+        invalid=len(violations),
+        violations=violations,
+    )
 
 
 def format_text(report: LintReport) -> str:

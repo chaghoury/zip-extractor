@@ -31,8 +31,8 @@ GET  /api/calculateOrderTotal/456
 
 ```
 ✅ Good Examples:
-GET    /api/users                    # Get users
-POST   /api/users                    # Create user
+GET    /api/users                   # Get users
+POST   /api/users                   # Create user
 DELETE /api/users/123               # Delete user
 PATCH  /api/users/123/password      # Update password
 GET    /api/orders/456/total        # Get order total
@@ -47,11 +47,11 @@ Mixed naming conventions across the API.
 ```json
 ❌ Bad Examples:
 {
-  "user_id": 123,           // snake_case
-  "firstName": "John",      // camelCase
-  "last-name": "Doe",       // kebab-case
-  "EMAIL": "john@example.com", // UPPER_CASE
-  "IsActive": true          // PascalCase
+  "user_id": 123,               // snake_case
+  "firstName": "John",          // camelCase
+  "last-name": "Doe",           // kebab-case
+  "EMAIL": "john@example.com",  // UPPER_CASE
+  "IsActive": true              // PascalCase
 }
 ```
 
@@ -134,7 +134,7 @@ Creating deeply nested URL structures that are hard to navigate.
 
 ```
 ✅ Good Examples:
-/tasks/678                    # Direct access to task
+/tasks/678                   # Direct access to task
 /tasks/678/comments          # Task comments
 /users/012/tasks             # User's tasks
 /projects/345?team=789       # Project filtering

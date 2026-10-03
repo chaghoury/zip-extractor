@@ -17,7 +17,7 @@ import sys
 from dataclasses import dataclass, asdict, field
 from datetime import date
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Optional
 
 COMMIT_RE = re.compile(
     r"^(?P<type>feat|fix|perf|refactor|docs|test|build|ci|chore|security|deprecated|remove)"
@@ -39,6 +39,14 @@ class CLIError(Exception):
     """Raised for expected CLI failures."""
 
 
+def _empty_sections() -> dict[str, list[str]]:
+    return {}
+
+
+def _empty_string_list() -> list[str]:
+    return []
+
+
 @dataclass
 class ParsedCommit:
     raw: str
@@ -52,8 +60,8 @@ class ParsedCommit:
 class ChangelogEntry:
     version: str
     release_date: str
-    sections: Dict[str, List[str]] = field(default_factory=dict)
-    breaking_changes: List[str] = field(default_factory=list)
+    sections: dict[str, list[str]] = field(default_factory=_empty_sections)
+    breaking_changes: list[str] = field(default_factory=_empty_string_list)
     bump: str = "patch"
 
 
@@ -89,7 +97,7 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def read_lines_from_file(path: str) -> List[str]:
+def read_lines_from_file(path: str) -> list[str]:
     try:
         return [
             line.strip()
@@ -100,14 +108,14 @@ def read_lines_from_file(path: str) -> List[str]:
         raise CLIError(f"Failed reading --input file: {exc}") from exc
 
 
-def read_lines_from_stdin() -> List[str]:
+def read_lines_from_stdin() -> list[str]:
     if sys.stdin.isatty():
         return []
     payload = sys.stdin.read()
     return [line.strip() for line in payload.splitlines() if line.strip()]
 
 
-def read_lines_from_git(args: argparse.Namespace) -> List[str]:
+def read_lines_from_git(args: argparse.Namespace) -> list[str]:
     if args.from_tag or args.to_tag:
         if not args.to_tag:
             raise CLIError("--to-tag is required when using tag range.")
@@ -137,7 +145,7 @@ def read_lines_from_git(args: argparse.Namespace) -> List[str]:
     return [line.strip() for line in proc.stdout.splitlines() if line.strip()]
 
 
-def load_commits(args: argparse.Namespace) -> List[str]:
+def load_commits(args: argparse.Namespace) -> list[str]:
     if args.input:
         return read_lines_from_file(args.input)
 
@@ -152,8 +160,8 @@ def load_commits(args: argparse.Namespace) -> List[str]:
     raise CLIError("No commit input found. Use --input, stdin, or git range flags.")
 
 
-def parse_commits(lines: List[str]) -> List[ParsedCommit]:
-    parsed: List[ParsedCommit] = []
+def parse_commits(lines: list[str]) -> list[ParsedCommit]:
+    parsed: list[ParsedCommit] = []
     for line in lines:
         match = COMMIT_RE.match(line)
         if not match:
@@ -170,7 +178,7 @@ def parse_commits(lines: List[str]) -> List[ParsedCommit]:
     return parsed
 
 
-def determine_bump(commits: List[ParsedCommit]) -> str:
+def determine_bump(commits: list[ParsedCommit]) -> str:
     if any(c.breaking for c in commits):
         return "major"
     if any(c.ctype == "feat" for c in commits):
@@ -179,9 +187,9 @@ def determine_bump(commits: List[ParsedCommit]) -> str:
 
 
 def build_entry(
-    commits: List[ParsedCommit], version: str, entry_date: str
+    commits: list[ParsedCommit], version: str, entry_date: str
 ) -> ChangelogEntry:
-    sections: Dict[str, List[str]] = {
+    sections: dict[str, list[str]] = {
         "Security": [],
         "Added": [],
         "Changed": [],
@@ -189,7 +197,7 @@ def build_entry(
         "Removed": [],
         "Fixed": [],
     }
-    breaking_changes: List[str] = []
+    breaking_changes: list[str] = []
 
     for commit in commits:
         if commit.breaking:

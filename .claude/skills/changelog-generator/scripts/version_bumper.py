@@ -14,9 +14,39 @@ import argparse
 import json
 import re
 import sys
-from typing import Dict, List, Optional, Tuple, Union
-from enum import Enum
 from dataclasses import dataclass
+from enum import Enum
+from typing import Optional, TypedDict
+
+
+class CommitSummary(TypedDict):
+    scope: str
+    description: str
+    hash: str
+
+
+class BreakingChange(TypedDict):
+    type: str
+    scope: str
+    description: str
+    breaking_description: str
+    hash: str
+
+
+class IgnoredCommit(TypedDict):
+    type: str
+    scope: str
+    description: str
+    hash: str
+
+
+class CommitAnalysis(TypedDict):
+    total_commits: int
+    by_type: dict[str, int]
+    breaking_changes: list[BreakingChange]
+    features: list[CommitSummary]
+    fixes: list[CommitSummary]
+    ignored: list[IgnoredCommit]
 
 
 class BumpType(Enum):
@@ -240,9 +270,9 @@ class VersionBumper:
 
     def __init__(self):
         self.current_version: Optional[Version] = None
-        self.commits: List[ConventionalCommit] = []
-        self.custom_rules: Dict[str, BumpType] = {}
-        self.ignore_types: List[str] = ["test", "ci", "build", "chore", "docs", "style"]
+        self.commits: list[ConventionalCommit] = []
+        self.custom_rules: dict[str, BumpType] = {}
+        self.ignore_types: list[str] = ["test", "ci", "build", "chore", "docs", "style"]
 
     def set_current_version(self, version_str: str):
         """Set the current version."""
@@ -252,10 +282,10 @@ class VersionBumper:
         """Add custom rule for commit type to bump type mapping."""
         self.custom_rules[commit_type] = bump_type
 
-    def parse_commits_from_json(self, json_data: Union[str, List[Dict]]):
+    def parse_commits_from_json(self, json_data: str | list[dict[str, str]]) -> None:
         """Parse commits from JSON format."""
         if isinstance(json_data, str):
-            data = json.loads(json_data)
+            data: list[dict[str, str]] = json.loads(json_data)
         else:
             data = json_data
 
@@ -269,7 +299,7 @@ class VersionBumper:
             )
             self.commits.append(commit)
 
-    def parse_commits_from_git_log(self, git_log_text: str):
+    def parse_commits_from_git_log(self, git_log_text: str) -> None:
         """Parse commits from git log output."""
         lines = git_log_text.strip().split("\n")
 
@@ -345,7 +375,7 @@ class VersionBumper:
         bump_type = self.determine_bump_type()
         return self.current_version.bump(bump_type, prerelease_type)
 
-    def generate_bump_commands(self, new_version: Version) -> Dict[str, List[str]]:
+    def generate_bump_commands(self, new_version: Version) -> dict[str, list[str]]:
         """Generate version bump commands for different package managers."""
         version_str = new_version.to_string()
         version_with_v = new_version.to_string(include_v_prefix=True)
@@ -378,11 +408,11 @@ class VersionBumper:
 
         return commands
 
-    def generate_file_updates(self, new_version: Version) -> Dict[str, str]:
+    def generate_file_updates(self, new_version: Version) -> dict[str, str]:
         """Generate file update snippets for common package files."""
         version_str = new_version.to_string()
 
-        updates = {}
+        updates: dict[str, str] = {}
 
         # package.json
         updates["package.json"] = json.dumps(
@@ -439,7 +469,7 @@ __email__ = "your.email@example.com"
 
         return updates
 
-    def analyze_commits(self) -> Dict:
+    def analyze_commits(self) -> CommitAnalysis:
         """Provide detailed analysis of commits for version bumping."""
         if not self.commits:
             return {
@@ -451,7 +481,7 @@ __email__ = "your.email@example.com"
                 "ignored": [],
             }
 
-        analysis = {
+        analysis: CommitAnalysis = {
             "total_commits": len(self.commits),
             "by_type": {},
             "breaking_changes": [],
@@ -460,7 +490,7 @@ __email__ = "your.email@example.com"
             "ignored": [],
         }
 
-        type_counts = {}
+        type_counts: dict[str, int] = {}
         for commit in self.commits:
             type_counts[commit.type] = type_counts.get(commit.type, 0) + 1
 
@@ -619,7 +649,7 @@ def main():
         sys.exit(1)
 
     # Generate output
-    output_data = {}
+    output_data: dict[str, object] = {}
 
     if args.output_format == "json":
         output_data = {
